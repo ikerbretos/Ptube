@@ -14,12 +14,13 @@ interface InnerTubeApi {
         "Referer: https://www.youtube.com/"
     )
     @POST("youtubei/v1/browse?key=AIzaSyDyT5W0Jh49F30Pqqtyfdf7pDLFKLJoAnw")
-    suspend fun getBrowse(@Body body: InnerTubeBody): InnerTubeBrowseResponse
+    suspend fun getShorts(@Body body: InnerTubeBody): InnerTubeBrowseResponse
 
     @Serializable
     data class InnerTubeBody(
         val context: InnerTubeContext = InnerTubeContext(),
-        val browseId: String = "FEShorts"
+        val browseId: String? = "FEShorts",
+        val continuation: String? = null
     )
 
     @Serializable
@@ -39,7 +40,38 @@ interface InnerTubeApi {
 
     @Serializable
     data class InnerTubeBrowseResponse(
-        val contents: Contents? = null
+        val contents: Contents? = null,
+        val onResponseReceivedActions: List<OnResponseReceivedAction>? = null
+    )
+
+    @Serializable
+    data class OnResponseReceivedAction(
+        val appendContinuationItemsAction: AppendContinuationItemsAction? = null
+    )
+
+    @Serializable
+    data class AppendContinuationItemsAction(
+        val continuationItems: List<RichItem>? = null
+    )
+
+    @Serializable
+    data class ContinuationItem(
+        val continuationItemRenderer: ContinuationItemRenderer? = null
+    )
+
+    @Serializable
+    data class ContinuationItemRenderer(
+        val continuationEndpoint: ContinuationEndpoint? = null
+    )
+
+    @Serializable
+    data class ContinuationEndpoint(
+        val continuationCommand: ContinuationCommand? = null
+    )
+
+    @Serializable
+    data class ContinuationCommand(
+        val token: String? = null
     )
 
     @Serializable
@@ -80,7 +112,8 @@ interface InnerTubeApi {
 
     @Serializable
     data class RichItem(
-        val richItemRenderer: RichItemRenderer? = null
+        val richItemRenderer: RichItemRenderer? = null,
+        val continuationItemRenderer: ContinuationItemRenderer? = null
     )
 
     @Serializable
@@ -158,5 +191,4 @@ interface InnerTubeApi {
        val channelTitleText: TextRun? = null,
        val channelThumbnail: Annotations? = null
     )
-
 }
