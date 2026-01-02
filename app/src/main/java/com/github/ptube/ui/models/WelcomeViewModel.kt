@@ -1,0 +1,117 @@
+package com.github.ptube.ui.models
+
+import android.content.Context
+import android.net.Uri
+import android.os.Parcelable
+import androidx.annotation.StringRes
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
+import androidx.lifecycle.asLiveData
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.github.ptube.R
+import com.github.ptube.api.InstanceRepository
+import com.github.ptube.api.RetrofitInstance
+import com.github.ptube.api.obj.PipedInstance
+import com.github.ptube.constants.PreferenceKeys
+import com.github.ptube.helpers.BackupHelper
+import com.github.ptube.helpers.PlayerHelper
+import com.github.ptube.helpers.PreferenceHelper
+import kotlinx.coroutines.launch
+import kotlinx.parcelize.Parcelize
+
+class WelcomeViewModel(
+    private val instanceRepository: InstanceRepository,
+    private val savedStateHandle: SavedStateHandle,
+) : ViewModel() {
+
+    private val _uiState = savedStateHandle.getStateFlow(UI_STATE, UiState())
+    val uiState = _uiState.asLiveData()
+
+    init {
+        // Force Full Local Mode by default as per requirement
+        PreferenceHelper.putBoolean(PreferenceKeys.FULL_LOCAL_MODE, true)
+        PreferenceHelper.putBoolean(PreferenceKeys.LOCAL_FEED_EXTRACTION, true)
+        refreshAndNavigate()
+    }
+
+    fun setFullLocalModeEnabled(enabled: Boolean) {
+        savedStateHandle[UI_STATE] = _uiState.value.copy(fullLocalMode = enabled)
+    }
+
+    fun setSelectedInstanceIndex(index: Int) {
+        savedStateHandle[UI_STATE] = _uiState.value.copy(selectedInstanceIndex = index)
+    }
+
+    fun onConfirmSettings() {
+        val fullLocalMode = _uiState.value.fullLocalMode
+        val selectedInstanceIndex = _uiState.value.selectedInstanceIndex
+
+        if (fullLocalMode) {
+            PreferenceHelper.putBoolean(PreferenceKeys.FULL_LOCAL_MODE, true)
+            PreferenceHelper.putBoolean(PreferenceKeys.LOCAL_FEED_EXTRACTION, true)
+            refreshAndNavigate()
+        } else if (selectedInstanceIndex == null) {
+            savedStateHandle[UI_STATE] = _uiState.value.copy(error = R.string.choose_instance)
+        } else {
+            PreferenceHelper.putString(
+                PreferenceKeys.FETCH_INSTANCE,
+                _uiState.value.instances[selectedInstanceIndex].apiUrl
+            )
+            PreferenceHelper.putBoolean(PreferenceKeys.FULL_LOCAL_MODE, false)
+            refreshAndNavigate()
+        }
+    }
+
+    fun restoreAdvancedBackup(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            BackupHelper.restoreAdvancedBackup(context, uri)
+
+            // only skip the welcome activity if the restored backup contains an instance
+            val instancePref = PreferenceHelper.getString(PreferenceKeys.FETCH_INSTANCE, "")
+            if (instancePref.isNotEmpty() || PlayerHelper.fullLocalMode) {
+                refreshAndNavigate()
+            }
+        }
+    }
+
+    private fun refreshAndNavigate() {
+        // refresh the api urls since they have changed likely
+        RetrofitInstance.apiLazyMgr.reset()
+        savedStateHandle[UI_STATE] = _uiState.value.copy(navigateToMain = Unit)
+    }
+
+    fun onErrorShown() {
+        savedStateHandle[UI_STATE] = _uiState.value.copy(error = null)
+    }
+
+    fun onNavigated() {
+        savedStateHandle[UI_STATE] = _uiState.value.copy(navigateToMain = null)
+    }
+
+    @Parcelize
+    data class UiState(
+        val fullLocalMode: Boolean = true,
+        val selectedInstanceIndex: Int? = null,
+        val instances: List<PipedInstance> = emptyList(),
+        @StringRes val error: Int? = null,
+        val navigateToMain: Unit? = null,
+    ) : Parcelable
+
+    companion object {
+        private const val UI_STATE = "ui_state"
+
+        val Factory: ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                WelcomeViewModel(
+                    instanceRepository = InstanceRepository(),
+                    savedStateHandle = createSavedStateHandle(),
+                )
+            }
+        }
+    }
+}
