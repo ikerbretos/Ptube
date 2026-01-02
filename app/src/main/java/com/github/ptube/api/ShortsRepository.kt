@@ -49,8 +49,15 @@ object ShortsRepository {
             }
 
             // 4. Mix and Shuffle
+            val historyDao = DatabaseHolder.Database.watchHistoryDao()
+            val watchedIds = historyDao.getAll().map { it.videoId }.toSet()
+
             val mixedList = (subscriptionShorts + searchShorts)
                 .distinctBy { it.url }
+                .filter { 
+                    val id = com.github.ptube.util.TextUtils.getVideoIdFromUri(android.net.Uri.parse(it.url)) ?: ""
+                    !watchedIds.contains(id)
+                }
                 .shuffled() // Shuffle to keep it fresh
             
             if (mixedList.isNotEmpty()) {

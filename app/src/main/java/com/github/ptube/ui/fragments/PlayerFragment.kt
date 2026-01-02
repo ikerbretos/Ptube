@@ -1031,6 +1031,14 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
             playerController.pause()
         }
 
+        if (isShortsMode && ::playerController.isInitialized) {
+            playerController.removeListener(playerListener)
+            playerController.release()
+            // We set it to uninitialized effectively for our logic by checking isConnected usually, 
+            // but here we just rely on onResume to allow re-attachment.
+            // Note: `playerController` variable itself isn't nullified but it is released.
+        }
+
         isEnteringPiPMode = false
 
         super.onPause()
