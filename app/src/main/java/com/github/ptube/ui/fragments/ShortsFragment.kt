@@ -77,6 +77,37 @@ class ShortsFragment : Fragment(R.layout.fragment_shorts) {
                                     homeViewModel.loadMoreShorts()
                                 }
                             }
+
+                            private var lastPosition = -1
+                            override fun onPageScrolled(position: Int, positionOffset: Float, positionOffsetPixels: Int) {
+                                super.onPageScrolled(position, positionOffset, positionOffsetPixels)
+                                // "Instant Pause" logic:
+                                // If user drags significantly (> 10%), pause the current video.
+                                // We need to access the fragment at 'position'.
+                                if (positionOffset > 0.1f && position != lastPosition) {
+                                     try {
+                                         // Find the fragment by tag (ViewPager2 naming convention: f<id>)
+                                         // Or iterate fragments. Since we don't know the exact tag strategy of FragmentStateAdapter inside VP2 easily without external helpers,
+                                         // we can try to find it via childFragmentManager.
+                                         // However, FragmentStateAdapter doesn't add fragments with predictable tags in all versions.
+                                         // A simpler way: Iterate all child fragments and pause the one that matches 'position' if we could track it, 
+                                         // but 'position' in adapter doesn't map 1:1 to fragment objects easily.
+                                         // ALTERNATIVE: checking 'isVisible' in PlayerFragment.
+                                         
+                                         // Better approach: Just pause ALL visible players when scrolling starts, 
+                                         // the 'next' one hasn't started yet (onResume not called).
+                                         // Actually, 'position' is the one we are scrolling FROM (usually).
+                                         
+                                         childFragmentManager.fragments.forEach { frag ->
+                                             if (frag is com.github.ptube.ui.fragments.PlayerFragment && frag.isResumed) {
+                                                 frag.onInstantPauseCallback() // We will add this method or just call pause if accessible
+                                             }
+                                         }
+                                         lastPosition = position 
+                                     } catch (e: Exception) { e.printStackTrace() }
+                                }
+                                if (positionOffset == 0f) lastPosition = -1
+                            }
                         })
     
                         // Scroll to target video if specified in arguments

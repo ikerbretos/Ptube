@@ -58,12 +58,15 @@ class HomeViewModel : ViewModel() {
                 awaitAll(
                     async { if (visibleItems.contains(TRENDING)) loadTrending(context) },
                     async { if (visibleItems.contains(FEATURED)) loadFeed(subscriptionsViewModel) },
-                    async { loadShorts() },
                     async { if (visibleItems.contains(BOOKMARKS)) loadBookmarks() },
                     async { if (visibleItems.contains(PLAYLISTS)) loadPlaylists() },
                     async { if (visibleItems.contains(WATCHING)) loadVideosToContinueWatching() }
                 )
-                loadedSuccessfully.value = sections.any { it.value != null }
+                
+                // Load Shorts independently so it doesn't block the main feed if it takes longer
+                launch { loadShorts() }
+                
+                loadedSuccessfully.value = sections.filter { it != shorts }.any { it.value != null }
                 isLoading.value = false
             }
 

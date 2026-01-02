@@ -1226,6 +1226,12 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
         )
     }
 
+    fun onInstantPauseCallback() {
+        if (::playerController.isInitialized && playerController.isPlaying) {
+            playerController.pause()
+        }
+    }
+
     private fun dismissCommentsSheet() {
         // close comment bottom sheet if opened for next video
         childFragmentManager.fragments
