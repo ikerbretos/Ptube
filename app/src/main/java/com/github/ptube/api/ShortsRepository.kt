@@ -43,6 +43,7 @@ object ShortsRepository {
             // OR in onResponseReceivedActions (continuation)
             
             val richItems = response.contents?.twoColumnBrowseResultsRenderer?.tabs?.firstOrNull()?.tabRenderer?.content?.richGridRenderer?.contents
+                ?: response.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()?.tabRenderer?.content?.richGridRenderer?.contents
                 ?: emptyList()
             
             // Extract from RichItems (Main page)
@@ -69,8 +70,11 @@ object ShortsRepository {
             
             var newToken: String? = null
             
-            // Check RichGrid (First Page)
-            response.contents?.twoColumnBrowseResultsRenderer?.tabs?.firstOrNull()?.tabRenderer?.content?.richGridRenderer?.contents?.lastOrNull()?.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token?.let {
+            // Check RichGrid (First Page - Desktop & Mobile)
+            val tabRenderer = response.contents?.twoColumnBrowseResultsRenderer?.tabs?.firstOrNull()?.tabRenderer
+                ?: response.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()?.tabRenderer
+            
+            tabRenderer?.content?.richGridRenderer?.contents?.lastOrNull()?.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token?.let {
                 newToken = it
             }
             
@@ -112,8 +116,8 @@ object ShortsRepository {
     }
     
     // For compatibility with HomeViewModel
-    suspend fun getShorts(): List<StreamItem> {
-        return getNextShortsBatch(forceRefresh = true)
+    suspend fun getShorts(append: Boolean): List<StreamItem> {
+        return getNextShortsBatch(forceRefresh = !append)
     }
 
     // Helper for toID

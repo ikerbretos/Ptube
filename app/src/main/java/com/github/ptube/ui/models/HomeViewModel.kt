@@ -119,7 +119,7 @@ class HomeViewModel : ViewModel() {
                     shorts.updateIfChanged(items) 
                 }
             },
-            ioBlock = { com.github.ptube.api.ShortsRepository.getShorts() }
+            ioBlock = { com.github.ptube.api.ShortsRepository.getShorts(append) }
         )
     }
 

@@ -30,12 +30,12 @@ interface InnerTubeApi {
 
     @Serializable
     data class InnerTubeClient(
-        val clientName: String = "WEB",
-        val clientVersion: String = "2.20230920.00.00",
-        val userAgent: String = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
+        val clientName: String = "ANDROID",
+        val clientVersion: String = "17.31.35",
+        val androidSdkVersion: Int = 31,
+        val userAgent: String = "com.google.android.youtube/17.31.35 (Linux; U; Android 12; US) gzip",
         val hl: String = "en",
-        val gl: String = "US",
-        val platform: String = "DESKTOP"
+        val gl: String = "US"
     )
 
     @Serializable
