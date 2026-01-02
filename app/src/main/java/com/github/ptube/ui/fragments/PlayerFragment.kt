@@ -48,6 +48,9 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import kotlinx.coroutines.Job
+import com.github.ptube.api.MediaServiceRepository
 import androidx.media3.session.MediaController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.github.ptube.R
@@ -133,6 +136,10 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
     private val commentsViewModel: CommentsViewModel by activityViewModels()
     private val chaptersViewModel: ChaptersViewModel by activityViewModels()
     private lateinit var playerController: MediaController
+    
+    // Local Player for Shorts (Pre-caching support)
+    private var localExoPlayer: ExoPlayer? = null
+    private var fetchVideoInfoJob: Job? = null
 
     // Video information passed by the intent
     private lateinit var videoId: String
@@ -443,6 +450,13 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
         fullscreenResolution = PlayerHelper.getDefaultResolution(requireContext(), true)
         noFullscreenResolution = PlayerHelper.getDefaultResolution(requireContext(), false)
     }
+    
+    override fun onStart() {
+        super.onStart()
+        if (isShortsMode) {
+            initializeLocalPlayer()
+        }
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         _binding = FragmentPlayerBinding.bind(view)
@@ -550,7 +564,7 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
                 )
             }.show(fragmentManager, null)
         } else {
-            // In Shorts Mode, we defer attachment to onResume to ensure only the active page controls the service
+            // In Shorts Mode, we use a local player initialized in onStart(), so we DO NOT attach to service here.
             if (!isShortsMode) {
                 attachToPlayerService(playerData, createNewSession)
             }
@@ -738,7 +752,9 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
 
         if (isShortsMode) {
              binding.shortsTouchOverlay.setOnClickListener {
-                 if (::playerController.isInitialized) {
+                 if (isShortsMode && localExoPlayer != null) {
+                     localExoPlayer?.togglePlayPauseState()
+                 } else if (::playerController.isInitialized) {
                      playerController.togglePlayPauseState()
                  }
              }
@@ -1031,6 +1047,10 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
             playerController.pause()
         }
 
+        if (isShortsMode) {
+             localExoPlayer?.playWhenReady = false
+        }
+        
         if (isShortsMode && ::playerController.isInitialized) {
             playerController.removeListener(playerListener)
             playerController.release()
@@ -1047,9 +1067,14 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
     override fun onResume() {
         super.onResume()
 
+        if (isShortsMode) {
+            localExoPlayer?.playWhenReady = true
+        }
+
         if (isShortsMode && !::playerController.isInitialized) {
-            val playerData = requireArguments().getParcelable<PlayerData>(IntentData.playerData)!!
-            attachToPlayerService(playerData, true)
+            // Legacy/Service fallback logic removed/disabled for Shorts local mode
+            // val playerData = requireArguments().getParcelable<PlayerData>(IntentData.playerData)!!
+            // attachToPlayerService(playerData, true)
         }
 
         if (closedVideo) {
@@ -1120,6 +1145,58 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
         (context as MainActivity).requestOrientationChange()
 
         _binding = null
+    }
+    
+    override fun onStop() {
+        super.onStop()
+        if (isShortsMode) {
+            localExoPlayer?.release()
+            localExoPlayer = null
+            fetchVideoInfoJob?.cancel()
+        }
+    }
+
+    private fun initializeLocalPlayer() {
+        if (localExoPlayer != null) return
+        
+        val context = requireContext()
+        // Initialize lightweight ExoPlayer
+        localExoPlayer = ExoPlayer.Builder(context).build()
+        binding.player.player = localExoPlayer
+        localExoPlayer?.repeatMode = Player.REPEAT_MODE_ONE
+        localExoPlayer?.playWhenReady = false // PRE-CACHE ONLY
+        
+        fetchVideoInfoJob = lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // 1. Fetch Streams
+                val fetchedStreams = MediaServiceRepository.instance.getStreams(videoId)
+                this@PlayerFragment.streams = fetchedStreams // Store for UI info
+                
+                // 2. Create Media Source (Dash)
+                val dashUri = PlayerHelper.createDashSource(fetchedStreams, context)
+                val mediaItem = MediaItem.fromUri(dashUri)
+                
+                withContext(Dispatchers.Main) {
+                    if (localExoPlayer != null) {
+                        localExoPlayer?.setMediaItem(mediaItem)
+                        localExoPlayer?.prepare()
+                        
+                        // Update UI with video details (Text, Channel, etc)
+                         binding.apply {
+                            ImageHelper.loadImage(fetchedStreams.uploaderAvatar, binding.playerChannelImage, true)
+                            playerChannelName.text = fetchedStreams.uploader
+                            titleTextView.text = fetchedStreams.title
+                            playerChannelSubCount.text = context.getString(
+                                R.string.subscribers,
+                                fetchedStreams.uploaderSubscriberCount.formatShort()
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     /**
@@ -1227,7 +1304,9 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
     }
 
     fun onInstantPauseCallback() {
-        if (::playerController.isInitialized && playerController.isPlaying) {
+        if (isShortsMode && localExoPlayer != null && localExoPlayer!!.isPlaying) {
+             localExoPlayer?.pause()
+        } else if (::playerController.isInitialized && playerController.isPlaying) {
             playerController.pause()
         }
     }
