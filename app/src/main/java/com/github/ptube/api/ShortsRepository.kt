@@ -38,14 +38,25 @@ object ShortsRepository {
                 // Implementing fully safe related fetching requires more complex API calls, let's stick to Subs + Search Mix for stability first as requested.
             } catch (e: Exception) { emptyList() }
 
-            // 3. Region Search (Existing)
+            // 3. Region Search (Randomized for variety)
             val region = com.github.ptube.helpers.PreferenceHelper.getTrendingRegion(context)
-            val query = "shorts $region"
+            
+            // List of various queries to simulate "algorithm" variety since we don't have a real discovery endpoint
+            val queries = listOf(
+                "shorts $region", "shorts viral", "shorts trending", 
+                "shorts funny", "shorts gaming", "shorts music", 
+                "shorts dance", "shorts animals", "shorts satisfy", 
+                "shorts challenge", "shorts comedy", "shorts lifehacks"
+            )
+            val query = queries.random()
+            
             android.util.Log.d("ShortsRepo", "Searching for shorts with region: $region (Query: $query)")
 
             val searchResults = MediaServiceRepository.instance.getSearchResults(query, "all")
             val searchShorts = searchResults.items.map { it.toStreamItem() }.filter { 
-                it.isShort == true || (it.duration != null && it.duration!! > 0 && it.duration!! < 180)
+                // Strict Shorts filtering: Must be marked as short OR be vertical-ish and < 180s (3 mins is absolute max for "Shorts" shelf usually 60s)
+                val isShortDuration = (it.duration != null && it.duration!! > 0 && it.duration!! <= 180)
+                it.isShort == true || isShortDuration
             }
 
             // 4. Mix and Shuffle
@@ -64,6 +75,7 @@ object ShortsRepository {
                 android.util.Log.d("ShortsRepo", "Returning ${mixedList.size} mixed shorts (Subs: ${subscriptionShorts.size}, Search: ${searchShorts.size})")
                 mixedList
             } else {
+                // If filter killed everything, try a broader search immediately
                 searchShorts.take(20)
             }
         }.getOrElse {

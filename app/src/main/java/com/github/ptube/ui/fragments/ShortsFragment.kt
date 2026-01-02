@@ -48,22 +48,46 @@ class ShortsFragment : Fragment(R.layout.fragment_shorts) {
             
             if (!shorts.isNullOrEmpty()) {
                 try {
-                    val adapter = ShortsPagerAdapter(this, shorts)
-                    binding.baseViewPager.adapter = adapter
-                    binding.baseViewPager.orientation = androidx.viewpager2.widget.ViewPager2.ORIENTATION_VERTICAL
-                    binding.baseViewPager.offscreenPageLimit = 1
-
-                    // Scroll to target video if specified in arguments
-                    arguments?.getString(IntentData.videoId)?.let { targetId ->
-                        val index = shorts.indexOfFirst { it.url.orEmpty().toID() == targetId }
-                        if (index != -1) {
-                            binding.baseViewPager.setCurrentItem(index, false)
-                            // We don't remove the argument immediately to ensure it works on rotation? 
-                            // But usually better to consume.
-                            arguments?.remove(IntentData.videoId)
+                    val currentAdapter = binding.baseViewPager.adapter as? ShortsPagerAdapter
+                    if (currentAdapter != null && currentAdapter.itemCount != shorts.size && shorts.size > currentAdapter.itemCount) {
+                        // It's an update/append
+                        // Ideally we use DiffUtil or notifyDataSetChanged within adapter, but FragmentStateAdapter is tricky.
+                        // Re-creating adapter resets position, which is bad.
+                        // We need a Mutable FragmentStateAdapter.
+                        // For simplicity in this quick fix, we'll just check if it's a NEW list or APPEND
+                        // But FragmentStateAdapter doesn't support list updates easily without notifyDataSetChanged.
+                        
+                        // Let's make our CustomAdapter aware of list changes or just cast and update list?
+                        // Actually, rebuilding adapter is the "safe" way unless we implement a mutable one.
+                        // But rebuilding resets view.
+                        // Let's use a Mutable implementation below.
+                        (binding.baseViewPager.adapter as? ShortsPagerAdapter)?.updateList(shorts)
+                    } else if (currentAdapter == null) {
+                        // First load
+                        val adapter = ShortsPagerAdapter(this, shorts.toMutableList())
+                        binding.baseViewPager.adapter = adapter
+                        binding.baseViewPager.orientation = androidx.viewpager2.widget.ViewPager2.ORIENTATION_VERTICAL
+                        binding.baseViewPager.offscreenPageLimit = 1
+                        
+                        binding.baseViewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
+                            override fun onPageSelected(position: Int) {
+                                super.onPageSelected(position)
+                                val total = binding.baseViewPager.adapter?.itemCount ?: 0
+                                if (total > 0 && position >= total - 3) {
+                                    homeViewModel.loadMoreShorts()
+                                }
+                            }
+                        })
+    
+                        // Scroll to target video if specified in arguments
+                        arguments?.getString(IntentData.videoId)?.let { targetId ->
+                            val index = shorts.indexOfFirst { it.url.orEmpty().toID() == targetId }
+                            if (index != -1) {
+                                binding.baseViewPager.setCurrentItem(index, false)
+                                arguments?.remove(IntentData.videoId)
+                            }
                         }
                     }
-
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -91,8 +115,27 @@ class ShortsFragment : Fragment(R.layout.fragment_shorts) {
         _binding = null
     }
 
-    class ShortsPagerAdapter(fragment: Fragment, private val list: List<StreamItem>) :
+    class ShortsPagerAdapter(fragment: Fragment, private val list: MutableList<StreamItem>) :
         FragmentStateAdapter(fragment) {
+        
+        fun updateList(newItems: List<StreamItem>) {
+            val startSize = list.size
+            // Assuming we only append
+            if (newItems.size > startSize) {
+                val newCount = newItems.size - startSize
+                for (i in startSize until newItems.size) {
+                    list.add(newItems[i])
+                }
+                notifyItemRangeInserted(startSize, newCount)
+            } else if (newItems.size < startSize) {
+                // Should not happen in append mode, but handle reset
+                val oldSize = list.size
+                list.clear()
+                list.addAll(newItems)
+                notifyDataSetChanged()
+            }
+        }
+        
         override fun getItemCount(): Int = list.size
 
         override fun createFragment(position: Int): Fragment {

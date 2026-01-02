@@ -104,16 +104,33 @@ class HomeViewModel : ViewModel() {
         )
     }
 
-    suspend fun loadShorts() {
+    suspend fun loadShorts(append: Boolean = false) {
         runSafely(
-            onSuccess = { items -> shorts.updateIfChanged(items) },
+            onSuccess = { items -> 
+                if (append) {
+                    val current = shorts.value.orEmpty().toMutableList()
+                    val newItems = items.filter { newItem -> current.none { it.url == newItem.url } }
+                    current.addAll(newItems)
+                    shorts.updateIfChanged(current)
+                } else {
+                    shorts.updateIfChanged(items) 
+                }
+            },
             ioBlock = { com.github.ptube.api.ShortsRepository.getShorts() }
         )
     }
 
     fun refreshShorts() {
         viewModelScope.launch {
-            loadShorts()
+            loadShorts(append = false)
+        }
+    }
+    
+    fun loadMoreShorts() {
+        if (isLoading.value == true) return
+        viewModelScope.launch {
+            // Check avoiding duplicate parallel loads could be good, but single threaded viewmodel scope helps
+             loadShorts(append = true)
         }
     }
 
