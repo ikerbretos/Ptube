@@ -7,16 +7,11 @@
         android:title="@string/startpage" />
 
     <item
-        android:id="@+id/trendsFragment"
-        android:icon="@drawable/ic_trending"
-        android:title="@string/trends"
-        android:visible="false" />
-
-    <item
         android:id="@+id/shortsFragment"
         android:icon="@drawable/ic_shorts"
-        android:title="@string/shorts"
-        android:visible="true" />
+        android:title="@string/shorts" />
+
+
 
     <item
         android:id="@+id/subscriptionsFragment"
@@ -25,13 +20,7 @@
 
     <item
         android:id="@+id/libraryFragment"
-        android:icon="@drawable/ic_library"
-        android:title="@string/library" />
-
-    <item
-        android:id="@+id/downloadsFragment"
-        android:icon="@drawable/ic_download_filled"
-        android:title="@string/downloads"
-        android:visible="false" />
+        android:icon="@drawable/ic_settings" 
+        android:title="Perfil" />
 
 </menu>

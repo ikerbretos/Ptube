@@ -49,7 +49,7 @@ class PtubeApp : Application() {
         /**
          * Handler for uncaught exceptions
          */
-        com.github.ptube.helpers.CrashHandler(this)
+        // com.github.ptube.helpers.CrashHandler(this)
         
         /**
          * Dynamically create App Shortcuts

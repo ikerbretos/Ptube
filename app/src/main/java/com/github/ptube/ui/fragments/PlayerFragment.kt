@@ -132,7 +132,13 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
     private val viewModel: PlayerViewModel by viewModels()
     private val commentsViewModel: CommentsViewModel by activityViewModels()
     private val chaptersViewModel: ChaptersViewModel by activityViewModels()
-    private lateinit var playerController: MediaController
+    lateinit var playerController: androidx.media3.session.MediaController
+
+    fun sendCustomCommand(command: androidx.media3.session.SessionCommand, args: android.os.Bundle) {
+        if (::playerController.isInitialized) {
+            playerController.sendCustomCommand(command, args)
+        }
+    }
 
     // Video information passed by the intent
     private lateinit var videoId: String
@@ -223,6 +229,11 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
                 }
 
                 PlayerEvent.Background -> {
+                    if (isShortsMode) {
+                        // Shorts should not play in background
+                        playerController.pause()
+                        return
+                    }
                     switchToAudioMode()
                     // wait some time in order for the service to get started properly
                     handler.postDelayed(500) {
@@ -316,6 +327,9 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
             }
 
             if (playbackState == Player.STATE_READY && binding.playerMotionLayout.progress == 0f) {
+                if (isShortsMode) {
+                    binding.player.backgroundBinding.exoImage.isGone = true
+                }
                 if (PlayerHelper.autoFullscreenShortsEnabled && isShort && !fullscreenOnShortsAlreadyDone) {
                     setFullscreen()
                     fullscreenOnShortsAlreadyDone = true
@@ -444,6 +458,8 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
         noFullscreenResolution = PlayerHelper.getDefaultResolution(requireContext(), false)
     }
 
+
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         _binding = FragmentPlayerBinding.bind(view)
         super.onViewCreated(view, savedInstanceState)
@@ -464,6 +480,7 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
             binding.player.layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT
             binding.player.layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
             
+            binding.player.resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
             (binding.player as? com.github.ptube.ui.views.CustomExoPlayerView)?.isShortsMode = true
             
             binding.shortsActionsLayout.isVisible = true
@@ -487,6 +504,14 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
         videoId = playerData.videoId
         playlistId = playerData.playlistId
         channelId = playerData.channelId
+
+        if (isShortsMode && playerData.thumbnailUrl != null) {
+            com.github.ptube.helpers.ImageHelper.loadImage(
+                playerData.thumbnailUrl,
+                binding.player.backgroundBinding.exoImage
+            )
+            binding.player.backgroundBinding.exoImage.isVisible = true
+        }
 
         // remember if playback already started once and only restart playback if that's the first run
         val createNewSession = !requireArguments().getBoolean(IntentData.alreadyStarted)
@@ -1008,6 +1033,11 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
     }
 
     override fun onPause() {
+        // Shorts: ALWAYS pause when leaving, no background play allowed
+        if (isShortsMode && ::playerController.isInitialized) {
+            playerController.pause()
+        }
+
         // check whether the screen is on
         val isInteractive = requireContext().getSystemService<PowerManager>()!!.isInteractive
 

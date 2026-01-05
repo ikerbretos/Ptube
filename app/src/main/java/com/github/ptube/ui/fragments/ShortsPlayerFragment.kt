@@ -2,6 +2,7 @@ package com.github.ptube.ui.fragments
 
 import android.os.Bundle
 import android.view.View
+import androidx.core.os.bundleOf
 import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -60,6 +61,26 @@ class ShortsPlayerFragment : Fragment(R.layout.fragment_shorts_player) {
         bindingObj.shortsPager.adapter = pagerAdapter
         bindingObj.shortsPager.setCurrentItem(foundPosition, false)
 
+        bindingObj.shortsPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                super.onPageSelected(position)
+                val context = requireContext()
+                com.github.ptube.util.ShortsPreloader.preload(context, shortsDataList, position)
+
+                // Send PRELOAD_VIDEO command to the service for the NEXT video
+                if (position + 1 < shortsDataList.size) {
+                    val nextVideoId = shortsDataList[position + 1].url.orEmpty().toID()
+                    (activity as? com.github.ptube.ui.activities.MainActivity)?.runOnPlayerFragment {
+                        sendCustomCommand(
+                            androidx.media3.session.SessionCommand(com.github.ptube.enums.PlayerCommand.PRELOAD_VIDEO.name, android.os.Bundle.EMPTY),
+                            bundleOf(com.github.ptube.enums.PlayerCommand.PRELOAD_VIDEO.name to nextVideoId)
+                        )
+                        true
+                    }
+                }
+            }
+        })
+
         val backCallback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 parentFragmentManager.beginTransaction().remove(this@ShortsPlayerFragment).commit()
@@ -82,7 +103,10 @@ class ShortsPlayerFragment : Fragment(R.layout.fragment_shorts_player) {
             val playerFrag = PlayerFragment()
             val playerBundle = Bundle()
             val idString = streamItem.url.orEmpty().toID()
-            playerBundle.putParcelable(IntentData.playerData, PlayerData(idString))
+            playerBundle.putParcelable(IntentData.playerData, PlayerData(
+                videoId = idString,
+                thumbnailUrl = streamItem.thumbnail
+            ))
             playerBundle.putBoolean(IntentData.alreadyStarted, false)
             playerBundle.putBoolean(IntentData.isShortsPlayer, true)
             playerFrag.arguments = playerBundle

@@ -9,5 +9,6 @@ data class PlayerData(
     val playlistId: String? = null,
     val channelId: String? = null,
     val keepQueue: Boolean = false,
-    val timestamp: Long = 0
+    val timestamp: Long = 0,
+    val thumbnailUrl: String? = null
 ) : Parcelable

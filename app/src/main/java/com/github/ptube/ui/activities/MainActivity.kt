@@ -57,6 +57,7 @@ import com.github.ptube.ui.preferences.BackupRestoreSettings
 import com.github.ptube.ui.preferences.BackupRestoreSettings.Companion.FILETYPE_ANY
 import com.github.ptube.util.UpdateChecker
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -199,18 +200,23 @@ class MainActivity : BaseActivity() {
 
         // Prevent duplicate entries into backstack, if selected item and current
         // visible fragment is different, then navigate to selected item.
-        binding.bottomNav.setOnItemReselectedListener {
-            if (it.itemId != navController.currentDestination?.id) {
-                navigateToBottomSelectedItem(it)
-            } else {
-                // get the current fragment
-                val fragment = navHostFragment.childFragmentManager.fragments.firstOrNull()
-                tryScrollToTop(fragment?.requireView())
-            }
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+             // Fix Settings Icon Visibility
+             val isProfileField = destination.id == R.id.libraryFragment
+             binding.toolbar.menu.findItem(R.id.action_settings)?.isVisible = isProfileField
+             
+             // Manage other icon visibility if needed
+             binding.toolbar.menu.findItem(R.id.action_search)?.isVisible = true // Always show search or hide on some? User said "Search icon" is there. 
         }
 
-        binding.bottomNav.setOnItemSelectedListener {
-            navigateToBottomSelectedItem(it)
+        binding.bottomNav.setOnItemSelectedListener { item ->
+            if (item.itemId == R.id.homeFragment && navController.currentDestination?.id == R.id.shortsFragment) {
+                 // Fix Shorts -> Home bug: Explicitly navigate to Home
+                 navController.navigate(R.id.homeFragment)
+                 true
+            } else {
+                 navigateToBottomSelectedItem(item)
+            }
         }
 
         if (binding.bottomNav.menu.children.none { it.itemId == startFragmentId }) deselectBottomBarItems()
@@ -318,9 +324,11 @@ class MainActivity : BaseActivity() {
         // stuff for the search in the topBar
         val searchItem = menu.findItem(R.id.action_search)
         this.searchItem = searchItem
-        searchView = searchItem.actionView as SearchView
-
-        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+        val actionView = searchItem.actionView
+        
+        if (actionView is SearchView) {
+            searchView = actionView
+            searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String): Boolean {
                 searchView.clearFocus()
 
@@ -405,6 +413,7 @@ class MainActivity : BaseActivity() {
             searchView.setQuery(savedSearchQuery, true)
             savedSearchQuery = null
         }
+        }
 
         return super.onCreateOptionsMenu(menu)
     }
@@ -439,29 +448,18 @@ class MainActivity : BaseActivity() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
         return when (item.itemId) {
+            R.id.action_notification -> {
+                // Navigate to notifications if available, or show snackbar
+                Snackbar.make(binding.root, "No tienes notificaciones nuevas", Snackbar.LENGTH_SHORT).show()
+                true
+            }
+
             R.id.action_settings -> {
-                val settingsIntent = Intent(this, SettingsActivity::class.java)
-                startActivity(settingsIntent)
+                val intent = Intent(this, SettingsActivity::class.java)
+                startActivity(intent)
                 true
             }
-
-            R.id.action_about -> {
-                val aboutIntent = Intent(this, AboutActivity::class.java)
-                startActivity(aboutIntent)
-                true
-            }
-
-            R.id.action_help -> {
-                val helpIntent = Intent(this, HelpActivity::class.java)
-                startActivity(helpIntent)
-                true
-            }
-
-
 
             else -> super.onOptionsItemSelected(item)
         }

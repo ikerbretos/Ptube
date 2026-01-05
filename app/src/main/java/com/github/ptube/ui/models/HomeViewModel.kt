@@ -155,6 +155,38 @@ class HomeViewModel : ViewModel() {
         return DatabaseHelper.filterByStreamTypeAndWatchPosition(feed, hideWatched, showUpcoming)
     }
 
+    fun loadMore(subscriptionsViewModel: SubscriptionsViewModel) {
+        if (isLoading.value == true) return
+
+        viewModelScope.launch {
+            // Fetch more Shorts
+            val newShorts = withContext(Dispatchers.IO) {
+                try {
+                    com.github.ptube.api.ShortsRepository.getShorts()
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            }
+            if (newShorts.isNotEmpty()) {
+                val current = shorts.value.orEmpty()
+                shorts.postValue((current + newShorts).distinctBy { it.url })
+            }
+
+            // Fetch more Videos (Trending/Feed)
+            val newVideos = withContext(Dispatchers.IO) {
+                try {
+                    tryLoadFeed(subscriptionsViewModel)
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            }
+            if (newVideos.isNotEmpty()) {
+                val current = feed.value.orEmpty()
+                feed.postValue((current + newVideos).distinctBy { it.url })
+            }
+        }
+    }
+
     companion object {
         private const val UNUSUAL_LOAD_TIME_MS = 10000L
         private const val FEATURED = "featured"

@@ -68,12 +68,13 @@ open class OnlinePlayerService : AbstractPlayerService() {
 
     private var autoPlayCountdownEnabled = false
 
-    private val scope = CoroutineScope(Dispatchers.IO)
-
-    /*
-    Current job that's loading a new video (the value is null if no video is loading at the moment).
-     */
     private var fetchVideoInfoJob: Job? = null
+
+    private var preloaderPlayer: androidx.media3.exoplayer.ExoPlayer? = null
+    private var preloadedVideoId: String? = null
+    private var preloaderJob: Job? = null
+
+    private val scope = CoroutineScope(Dispatchers.IO)
 
     private val playerListener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -136,13 +137,41 @@ open class OnlinePlayerService : AbstractPlayerService() {
         // stop any previous task for loading video info
         fetchVideoInfoJob?.cancelAndJoin()
 
+        // CHECK IF PRELOADED
+        if (videoId == preloadedVideoId && preloaderPlayer != null) {
+            Log.d("OnlinePlayerService", "Using preloaded player for $videoId")
+            preloaderJob?.cancelAndJoin()
+            
+            // Swap players
+            val oldPlayer = exoPlayer
+            exoPlayer = preloaderPlayer
+            preloaderPlayer = null
+            preloadedVideoId = null
+            
+            withContext(Dispatchers.Main) {
+                oldPlayer?.release()
+                exoPlayer?.addListener(playerListener)
+                mediaLibrarySession?.setPlayer(exoPlayer!!)
+                
+                if (exoPlayer?.playbackState == Player.STATE_READY) {
+                    exoPlayer?.play()
+                } else {
+                    exoPlayer?.prepare()
+                    exoPlayer?.play()
+                }
+            }
+            return
+        }
+
         // start loading the video info while keeping a reference to the job
         // so that it can be canceled once a different video is loaded
         fetchVideoInfoJob = scope.launch {
             streams = withContext(Dispatchers.IO) {
                 try {
+                    // Try to get from preloader cache first
+                    com.github.ptube.util.ShortsPreloader.getStreams(videoId) ?: 
                     MediaServiceRepository.instance.getStreams(videoId).let {
-                        DeArrowUtil.deArrowStreams(it, videoId)
+                        com.github.ptube.util.DeArrowUtil.deArrowStreams(it, videoId)
                     }
                 }  catch (e: Exception) {
                     Log.e(TAG(), e.stackTraceToString())
@@ -255,13 +284,76 @@ open class OnlinePlayerService : AbstractPlayerService() {
     }
 
     override fun runPlayerCommand(args: Bundle) {
-        super.runPlayerCommand(args)
+        if (args.containsKey(PlayerCommand.PRELOAD_VIDEO.name)) {
+            val preloadVideoId = args.getString(PlayerCommand.PRELOAD_VIDEO.name) ?: return
+            preloadVideo(preloadVideoId)
+            return
+        }
 
         if (args.containsKey(PlayerCommand.SET_SB_AUTO_SKIP_ENABLED.name)) {
             sponsorBlockAutoSkip = args.getBoolean(PlayerCommand.SET_SB_AUTO_SKIP_ENABLED.name)
         } else if (args.containsKey(PlayerCommand.SET_AUTOPLAY_COUNTDOWN_ENABLED.name)) {
             autoPlayCountdownEnabled =
                 args.getBoolean(PlayerCommand.SET_AUTOPLAY_COUNTDOWN_ENABLED.name)
+        }
+        
+        super.runPlayerCommand(args)
+    }
+
+    private fun preloadVideo(preloadVideoId: String) {
+        if (preloadVideoId == videoId || preloadVideoId == preloadedVideoId) return
+        
+        preloaderJob?.cancel()
+        preloaderJob = scope.launch {
+            Log.d("OnlinePlayerService", "Preloading video $preloadVideoId")
+            
+            val pStreams = withContext(Dispatchers.IO) {
+                try {
+                    com.github.ptube.util.ShortsPreloader.getStreams(preloadVideoId) ?: 
+                    MediaServiceRepository.instance.getStreams(preloadVideoId).let {
+                        com.github.ptube.util.DeArrowUtil.deArrowStreams(it, preloadVideoId)
+                    }
+                } catch (e: Exception) { null }
+            } ?: return@launch
+
+            withContext(Dispatchers.Main) {
+                if (preloaderPlayer == null) {
+                    preloaderPlayer = PlayerHelper.createPlayer(this@OnlinePlayerService, trackSelector!!)
+                }
+                
+                val pExoPlayer = preloaderPlayer!!
+                pExoPlayer.playWhenReady = false
+                
+                // Set media source (simplified DASH/HLS check)
+                val uri: Uri
+                val mimeType: String
+                when {
+                    pStreams.dash != null -> {
+                        uri = ProxyHelper.rewriteUrlUsingProxyPreference(pStreams.dash.orEmpty()).toUri()
+                        mimeType = MimeTypes.APPLICATION_MPD
+                    }
+                    pStreams.hls != null -> {
+                        uri = ProxyHelper.rewriteUrlUsingProxyPreference(pStreams.hls.orEmpty()).toUri()
+                        mimeType = MimeTypes.APPLICATION_M3U8
+                    }
+                    pStreams.videoStreams.isNotEmpty() -> {
+                        uri = ProxyHelper.rewriteUrlUsingProxyPreference(pStreams.videoStreams.first().url.orEmpty()).toUri()
+                        mimeType = MimeTypes.VIDEO_MP4
+                    }
+                    else -> return@withContext
+                }
+
+                val mediaItem = MediaItem.Builder()
+                    .setUri(uri)
+                    .setMimeType(mimeType)
+                    .setMetadata(pStreams, preloadVideoId)
+                    .build()
+                
+                pExoPlayer.setMediaItem(mediaItem)
+                pExoPlayer.prepare()
+                preloadedVideoId = preloadVideoId
+                Log.d("OnlinePlayerService", "Preloader ready for $preloadVideoId")
+            }
         }
     }
 
@@ -296,7 +388,7 @@ open class OnlinePlayerService : AbstractPlayerService() {
             }
             // HLS as last fallback
             streams.hls != null -> {
-                val hlsMediaSourceFactory = HlsMediaSource.Factory(DefaultDataSource.Factory(this))
+                val hlsMediaSourceFactory = HlsMediaSource.Factory(com.github.ptube.util.CacheManager.getDataSourceFactory(this))
                     .setPlaylistParserFactory(YoutubeHlsPlaylistParser.Factory())
 
                 val mediaItem = createMediaItem(
@@ -332,4 +424,11 @@ open class OnlinePlayerService : AbstractPlayerService() {
             .setSubtitleConfigurations(getSubtitleConfigs())
             .setMetadata(streams, videoId)
             .build()
+
+    override fun onDestroy() {
+        preloaderJob?.cancel()
+        preloaderPlayer?.release()
+        preloaderPlayer = null
+        super.onDestroy()
+    }
 }

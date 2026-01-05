@@ -3,28 +3,23 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
-        android:id="@+id/action_search"
-        android:focusableInTouchMode="true"
-        android:icon="@drawable/ic_search"
-        android:title="@string/search_hint"
-        app:actionViewClass="androidx.appcompat.widget.SearchView"
-        app:showAsAction="ifRoom|collapseActionView" />
+        android:id="@+id/action_notification"
+        android:icon="@drawable/ic_bell"
+        android:title="@string/notification"
+        app:showAsAction="always" />
 
     <item
         android:id="@+id/action_settings"
+        android:icon="@drawable/ic_settings"
         android:title="@string/settings"
-        app:showAsAction="never" />
+        android:visible="false"
+        app:showAsAction="always" />
 
     <item
-        android:id="@+id/action_help"
-        android:title="@string/help"
-        app:showAsAction="never" />
-
-
-
-    <item
-        android:id="@+id/action_about"
-        android:title="@string/about"
-        app:showAsAction="never" />
+        android:id="@+id/action_search"
+        android:icon="@drawable/ic_search"
+        android:title="@string/search_hint"
+        app:actionViewClass="androidx.appcompat.widget.SearchView"
+        app:showAsAction="always" />
 
 </menu>

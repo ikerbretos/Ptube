@@ -18,13 +18,13 @@
         <ImageView android:id="@id/exo_image"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:scaleType="fitXY"
+            android:scaleType="centerCrop"
             android:contentDescription="@null"/>
 
         <ImageView android:id="@id/exo_artwork"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:scaleType="fitXY"
+            android:scaleType="centerCrop"
             android:contentDescription="@null"/>
 
         <androidx.media3.ui.SubtitleView android:id="@id/exo_subtitles"

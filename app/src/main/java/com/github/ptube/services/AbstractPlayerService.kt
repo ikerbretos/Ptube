@@ -47,7 +47,7 @@ import kotlinx.coroutines.withContext
 
 @UnstableApi
 abstract class AbstractPlayerService : MediaLibraryService(), MediaLibrarySession.Callback {
-    private var mediaLibrarySession: MediaLibrarySession? = null
+    protected var mediaLibrarySession: MediaLibrarySession? = null
     var exoPlayer: ExoPlayer? = null
 
     private var notificationProvider: NowPlayingNotification? = null

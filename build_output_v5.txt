@@ -1,0 +1,40 @@
+Reusing configuration cache.
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:generateSafeArgsDebug UP-TO-DATE
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDebugSupportedLocales UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:dataBindingMergeDependencyArtifactsDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:generateDebugLocaleConfig UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:dataBindingGenBaseClassesDebug UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:kspDebugKotlin
+
+> Task :app:compileDebugKotlin
+w: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/ui/fragments/PlayerFragment.kt:811:38 Elvis operator (?:) always returns the left operand of non-nullable type String
+w: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/ui/fragments/PlayerFragment.kt:1060:49 'getParcelable(String?): T?' is deprecated. Deprecated in Java
+w: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/ui/fragments/ShortsFragment.kt:29:41 'getSerializable(String?): Serializable?' is deprecated. Deprecated in Java
+w: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/ui/fragments/ShortsFragment.kt:29:80 This cast can never succeed
+w: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/ui/fragments/ShortsPlayerFragment.kt:29:57 'getParcelable(String?): T?' is deprecated. Deprecated in Java
+w: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/services/OfflinePlayerService.kt:16:41 'SingleSampleMediaSource' is deprecated. Deprecated in Java
+w: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/services/OfflinePlayerService.kt:144:43 Name shadowed: videoUri
+w: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/services/OfflinePlayerService.kt:154:43 Name shadowed: audioUri
+w: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/services/OfflinePlayerService.kt:164:50 Name shadowed: subtitleInfo
+w: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/services/OfflinePlayerService.kt:170:13 'SingleSampleMediaSource' is deprecated. Deprecated in Java
+
+BUILD SUCCESSFUL in 14s
+22 actionable tasks: 3 executed, 19 up-to-date
+Configuration cache entry reused.

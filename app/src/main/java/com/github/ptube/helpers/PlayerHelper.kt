@@ -479,7 +479,7 @@ object PlayerHelper {
      */
     @OptIn(androidx.media3.common.util.UnstableApi::class)
     fun createPlayer(context: Context, trackSelector: DefaultTrackSelector): ExoPlayer {
-        val dataSourceFactory = DefaultDataSource.Factory(context)
+        val dataSourceFactory = com.github.ptube.util.CacheManager.getDataSourceFactory(context)
         val audioAttributes = AudioAttributes.Builder()
             .setUsage(C.USAGE_MEDIA)
             .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)

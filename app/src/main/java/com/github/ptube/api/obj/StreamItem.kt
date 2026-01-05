@@ -75,5 +75,6 @@ data class StreamItem(
         const val TYPE_STREAM = "stream"
         const val TYPE_CHANNEL = "channel"
         const val TYPE_PLAYLIST = "playlist"
+        const val TYPE_HEADER = "header"
     }
 }

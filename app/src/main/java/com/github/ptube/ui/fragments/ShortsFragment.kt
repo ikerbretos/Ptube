@@ -53,6 +53,26 @@ class ShortsFragment : Fragment(R.layout.fragment_shorts) {
                     binding.baseViewPager.orientation = androidx.viewpager2.widget.ViewPager2.ORIENTATION_VERTICAL
                     binding.baseViewPager.offscreenPageLimit = 1
 
+                    binding.baseViewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
+                        override fun onPageSelected(position: Int) {
+                            super.onPageSelected(position)
+                            val context = requireContext()
+                            com.github.ptube.util.ShortsPreloader.preload(context, shorts, position)
+                            
+                            // Send PRELOAD_VIDEO command to the service for the NEXT video
+                            if (position + 1 < shorts.size) {
+                                val nextVideoId = shorts[position + 1].url.orEmpty().toID()
+                                (activity as? com.github.ptube.ui.activities.MainActivity)?.runOnPlayerFragment {
+                                    sendCustomCommand(
+                                        androidx.media3.session.SessionCommand(com.github.ptube.enums.PlayerCommand.PRELOAD_VIDEO.name, android.os.Bundle.EMPTY),
+                                        bundleOf(com.github.ptube.enums.PlayerCommand.PRELOAD_VIDEO.name to nextVideoId)
+                                    )
+                                    true
+                                }
+                            }
+                        }
+                    })
+
                     // Scroll to target video if specified in arguments
                     arguments?.getString(IntentData.videoId)?.let { targetId ->
                         val index = shorts.indexOfFirst { it.url.orEmpty().toID() == targetId }
@@ -103,6 +123,7 @@ class ShortsFragment : Fragment(R.layout.fragment_shorts) {
             val playerBundle = bundleOf(
                 IntentData.playerData to PlayerData(
                     videoId = idString,
+                    thumbnailUrl = streamItem.thumbnail,
                     keepQueue = false,
                     timestamp = 0
                 ),
