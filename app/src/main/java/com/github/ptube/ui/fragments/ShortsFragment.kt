@@ -48,18 +48,42 @@ class ShortsFragment : Fragment(R.layout.fragment_shorts) {
             
             if (!shorts.isNullOrEmpty()) {
                 try {
-                    val adapter = ShortsPagerAdapter(this, shorts)
-                    binding.baseViewPager.adapter = adapter
-                    binding.baseViewPager.orientation = androidx.viewpager2.widget.ViewPager2.ORIENTATION_VERTICAL
-                    binding.baseViewPager.offscreenPageLimit = 1
-
+                    val currentAdapter = binding.baseViewPager.adapter as? ShortsPagerAdapter
+                    if (currentAdapter != null && currentAdapter.itemCount != shorts.size && shorts.size > currentAdapter.itemCount) {
+                        // It's an update/append
+                        // Ideally we use DiffUtil or notifyDataSetChanged within adapter, but FragmentStateAdapter is tricky.
+                        // Re-creating adapter resets position, which is bad.
+                        // We need a Mutable FragmentStateAdapter.
+                        // For simplicity in this quick fix, we'll just check if it's a NEW list or APPEND
+                        // But FragmentStateAdapter doesn't support list updates easily without notifyDataSetChanged.
+                        
+                        // Let's make our CustomAdapter aware of list changes or just cast and update list?
+                        // Actually, rebuilding adapter is the "safe" way unless we implement a mutable one.
+                        // But rebuilding resets view.
+                        // Let's use a Mutable implementation below.
+                        (binding.baseViewPager.adapter as? ShortsPagerAdapter)?.updateList(shorts)
+                    } else if (currentAdapter == null) {
+                        // First load
+                        val adapter = ShortsPagerAdapter(this, shorts.toMutableList())
+                        binding.baseViewPager.adapter = adapter
+                        binding.baseViewPager.orientation = androidx.viewpager2.widget.ViewPager2.ORIENTATION_VERTICAL
+                        binding.baseViewPager.offscreenPageLimit = 1
+                        
                     binding.baseViewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
                         override fun onPageSelected(position: Int) {
                             super.onPageSelected(position)
+                            
+                            // 1. Load More Shorts Logic (Remote)
+                            val total = binding.baseViewPager.adapter?.itemCount ?: 0
+                            if (total > 0 && position >= total - 3) {
+                                homeViewModel.loadMoreShorts()
+                            }
+
+                            // 2. Preload Logic (Mine)
                             val context = requireContext()
                             com.github.ptube.util.ShortsPreloader.preload(context, shorts, position)
                             
-                            // Send PRELOAD_VIDEO command to the service for the NEXT video
+                            // 3. Send PRELOAD_VIDEO command for NEXT video (Mine)
                             if (position + 1 < shorts.size) {
                                 val nextVideoId = shorts[position + 1].url.orEmpty().toID()
                                 (activity as? com.github.ptube.ui.activities.MainActivity)?.runOnPlayerFragment {
@@ -71,6 +95,23 @@ class ShortsFragment : Fragment(R.layout.fragment_shorts) {
                                 }
                             }
                         }
+
+                        // 4. Instant Pause Logic (Remote)
+                        private var lastPosition = -1
+                        override fun onPageScrolled(position: Int, positionOffset: Float, positionOffsetPixels: Int) {
+                             super.onPageScrolled(position, positionOffset, positionOffsetPixels)
+                             if (positionOffset > 0.1f && position != lastPosition) {
+                                  try {
+                                      childFragmentManager.fragments.forEach { frag ->
+                                          if (frag is com.github.ptube.ui.fragments.PlayerFragment && frag.isResumed) {
+                                              frag.onInstantPauseCallback() 
+                                          }
+                                      }
+                                      lastPosition = position 
+                                  } catch (e: Exception) { e.printStackTrace() }
+                             }
+                             if (positionOffset == 0f) lastPosition = -1
+                        }
                     })
 
                     // Scroll to target video if specified in arguments
@@ -78,12 +119,10 @@ class ShortsFragment : Fragment(R.layout.fragment_shorts) {
                         val index = shorts.indexOfFirst { it.url.orEmpty().toID() == targetId }
                         if (index != -1) {
                             binding.baseViewPager.setCurrentItem(index, false)
-                            // We don't remove the argument immediately to ensure it works on rotation? 
-                            // But usually better to consume.
                             arguments?.remove(IntentData.videoId)
                         }
                     }
-
+                    }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -111,8 +150,27 @@ class ShortsFragment : Fragment(R.layout.fragment_shorts) {
         _binding = null
     }
 
-    class ShortsPagerAdapter(fragment: Fragment, private val list: List<StreamItem>) :
+    class ShortsPagerAdapter(fragment: Fragment, private val list: MutableList<StreamItem>) :
         FragmentStateAdapter(fragment) {
+        
+        fun updateList(newItems: List<StreamItem>) {
+            val startSize = list.size
+            // Assuming we only append
+            if (newItems.size > startSize) {
+                val newCount = newItems.size - startSize
+                for (i in startSize until newItems.size) {
+                    list.add(newItems[i])
+                }
+                notifyItemRangeInserted(startSize, newCount)
+            } else if (newItems.size < startSize) {
+                // Should not happen in append mode, but handle reset
+                val oldSize = list.size
+                list.clear()
+                list.addAll(newItems)
+                notifyDataSetChanged()
+            }
+        }
+        
         override fun getItemCount(): Int = list.size
 
         override fun createFragment(position: Int): Fragment {

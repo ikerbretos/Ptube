@@ -58,12 +58,15 @@ class HomeViewModel : ViewModel() {
                 awaitAll(
                     async { if (visibleItems.contains(TRENDING)) loadTrending(context) },
                     async { if (visibleItems.contains(FEATURED)) loadFeed(subscriptionsViewModel) },
-                    async { loadShorts() },
                     async { if (visibleItems.contains(BOOKMARKS)) loadBookmarks() },
                     async { if (visibleItems.contains(PLAYLISTS)) loadPlaylists() },
                     async { if (visibleItems.contains(WATCHING)) loadVideosToContinueWatching() }
                 )
-                loadedSuccessfully.value = sections.any { it.value != null }
+                
+                // Load Shorts independently so it doesn't block the main feed if it takes longer
+                launch { loadShorts() }
+                
+                loadedSuccessfully.value = sections.filter { it != shorts }.any { it.value != null }
                 isLoading.value = false
             }
 
@@ -104,16 +107,33 @@ class HomeViewModel : ViewModel() {
         )
     }
 
-    suspend fun loadShorts() {
+    suspend fun loadShorts(append: Boolean = false) {
         runSafely(
-            onSuccess = { items -> shorts.updateIfChanged(items) },
-            ioBlock = { com.github.ptube.api.ShortsRepository.getShorts() }
+            onSuccess = { items -> 
+                if (append) {
+                    val current = shorts.value.orEmpty().toMutableList()
+                    val newItems = items.filter { newItem -> current.none { it.url == newItem.url } }
+                    current.addAll(newItems)
+                    shorts.updateIfChanged(current)
+                } else {
+                    shorts.updateIfChanged(items) 
+                }
+            },
+            ioBlock = { com.github.ptube.api.ShortsRepository.getShorts(append) }
         )
     }
 
     fun refreshShorts() {
         viewModelScope.launch {
-            loadShorts()
+            loadShorts(append = false)
+        }
+    }
+    
+    fun loadMoreShorts() {
+        if (isLoading.value == true) return
+        viewModelScope.launch {
+            // Check avoiding duplicate parallel loads could be good, but single threaded viewmodel scope helps
+             loadShorts(append = true)
         }
     }
 
@@ -162,7 +182,7 @@ class HomeViewModel : ViewModel() {
             // Fetch more Shorts
             val newShorts = withContext(Dispatchers.IO) {
                 try {
-                    com.github.ptube.api.ShortsRepository.getShorts()
+                    com.github.ptube.api.ShortsRepository.getShorts(append = true)
                 } catch (e: Exception) {
                     emptyList()
                 }

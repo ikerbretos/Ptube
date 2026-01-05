@@ -1,5 +1,6 @@
 Reusing configuration cache.
 > Task :app:preBuild UP-TO-DATE
+<<<<<<< HEAD
 > Task :app:checkKotlinGradlePluginConfigurationErrors
 > Task :app:preDebugBuild UP-TO-DATE
 > Task :app:generateSafeArgsDebug UP-TO-DATE
@@ -94,11 +95,49 @@ e: [ksp] java.lang.NullPointerException
 e: Error occurred in KSP, check log for detail
 e: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/ui/adapters/VideoCardsAdapter.kt:155:21 Name expected
 e: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/ui/adapters/VideoCardsAdapter.kt:161:1 Expecting a top level declaration
+=======
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:generateSafeArgsRelease UP-TO-DATE
+> Task :app:generateReleaseBuildConfig UP-TO-DATE
+> Task :app:generateReleaseResValues UP-TO-DATE
+> Task :app:createReleaseCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractReleaseSupportedLocales UP-TO-DATE
+> Task :app:generateReleaseResources UP-TO-DATE
+> Task :app:extractDeepLinksRelease UP-TO-DATE
+> Task :app:dataBindingMergeDependencyArtifactsRelease UP-TO-DATE
+> Task :app:checkReleaseAarMetadata UP-TO-DATE
+> Task :app:mapReleaseSourceSetPaths UP-TO-DATE
+> Task :app:processReleaseMainManifest UP-TO-DATE
+> Task :app:processReleaseManifest UP-TO-DATE
+> Task :app:processReleaseManifestForPackage UP-TO-DATE
+> Task :app:generateReleaseLocaleConfig UP-TO-DATE
+> Task :app:mergeReleaseResources UP-TO-DATE
+> Task :app:packageReleaseResources UP-TO-DATE
+> Task :app:parseReleaseLocalResources UP-TO-DATE
+> Task :app:dataBindingGenBaseClassesRelease UP-TO-DATE
+> Task :app:processReleaseResources UP-TO-DATE
+> Task :app:kspReleaseKotlin UP-TO-DATE
+
+> Task :app:compileReleaseKotlin FAILED
+e: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/ui/fragments/PlayerFragment.kt:138:33 Unresolved reference: ExoPlayer
+e: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/ui/fragments/PlayerFragment.kt:139:36 Unresolved reference: Job
+e: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/ui/fragments/PlayerFragment.kt:1048:30 Variable expected
+e: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/ui/fragments/PlayerFragment.kt:1068:29 Variable expected
+e: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/ui/fragments/PlayerFragment.kt:1161:26 Unresolved reference: ExoPlayer
+e: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/ui/fragments/PlayerFragment.kt:1163:25 Variable expected
+e: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/ui/fragments/PlayerFragment.kt:1164:25 Variable expected
+e: file:///C:/Users/Iker/Documents/GitHub/Libretube/Ptube/app/src/main/java/com/github/ptube/ui/fragments/PlayerFragment.kt:1169:38 Unresolved reference: MediaServiceRepository
+>>>>>>> 34902e568c642819929aff4c4f08d9da81d7add5
 
 FAILURE: Build failed with an exception.
 
 * What went wrong:
+<<<<<<< HEAD
 Execution failed for task ':app:kspDebugKotlin'.
+=======
+Execution failed for task ':app:compileReleaseKotlin'.
+>>>>>>> 34902e568c642819929aff4c4f08d9da81d7add5
 > A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
    > Compilation error. See log for more details
 
@@ -108,6 +147,11 @@ Execution failed for task ':app:kspDebugKotlin'.
 > Run with --scan to generate a Build Scan (powered by Develocity).
 > Get more help at https://help.gradle.org.
 
+<<<<<<< HEAD
 BUILD FAILED in 3s
 34 actionable tasks: 2 executed, 32 up-to-date
+=======
+BUILD FAILED in 16s
+22 actionable tasks: 2 executed, 20 up-to-date
+>>>>>>> 34902e568c642819929aff4c4f08d9da81d7add5
 Configuration cache entry reused.
